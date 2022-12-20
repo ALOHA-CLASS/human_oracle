@@ -14,6 +14,7 @@ WHERE username = 'HR';
 -- C## 없이 계정 생성
 ALTER SESSION SET "_ORACLE_SCRIPT" = TRUE;
 
+
 -- CREATE USER [계정명] IDENTIFIED BY [비밀번호];
 CREATE USER HR IDENTIFIED BY 123456;
 
@@ -356,7 +357,7 @@ FROM dual;
 -- 초 : SS
 SELECT first_name AS 이름
       ,hire_date 
-      ,TO_CHAR(hire_date, 'YYYY-MM-DD (dy) HH:MI:SS') AS 입사일자
+      ,TO_CHAR(hire_date, 'YYYY-MM-DDD (dy) HH:MI:SS') AS 입사일자
 FROM employees
 ;
 
@@ -444,6 +445,14 @@ FROM employees
 ORDER BY 커미션 DESC
 ;
 
+SELECT first_name 이름
+      ,salary 연봉
+      ,salary + (salary * NVL(commission_pct, 0)) 총급여
+      ,NVL2( commission_pct, 'O', 'X' ) 커미션여부
+FROM employees
+;
+
+
 -- 조회한 컬럼의 별칭으로 ORDER BY 절에서 사용할 수 있다.
 -- 조회한 컬럼의 별칭으로 WHERE 절에는 사용할 수 없다.
 
@@ -456,6 +465,354 @@ ORDER BY [정렬기준 컬럼] [ASC/DESC]
 ;
 -- (실행순서)
 -- FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY
+
+-- 45.
+-- 테이블 EMPLOYEES 의 FIRST_NAME, SALARY, COMMISION_PCT 속성을 이용하여 
+--  이름, 급여, 커미션, 최종급여 
+--  <조건> 
+--  최종급여 = 급여 + (급여*커미션)
+--  최종급여를 기준으로 내림차순 정렬
+SELECT FIRST_NAME 이름
+      ,SALARY 급여
+      ,NVL(COMMISSION_PCT,0) 커미션
+      ,SALARY + (SALARY * NVL(COMMISSION_PCT,0)) 최종급여
+FROM employees
+ORDER BY 최종급여 DESC
+;
+
+
+-- 46.
+SELECT *
+FROM employees;
+
+SELECT *
+FROM departments;
+
+-- 조인 : INNER JOIN
+SELECT emp.first_name 이름
+      ,dep.department_name 부서
+FROM employees emp, departments dep
+WHERE emp.department_id = dep.department_id;
+
+
+-- DECODE( 인자, 조건1, 결과1, 조건2, 결과2, ... )
+-- : 인자의 값이 조건과 일치할 때, 그 뒤의 지정한 결과를 출력하는 함수
+SELECT first_name 이름
+      ,DECODE(department_id, 10, 'Administration'
+                           , 20, 'Marketing'
+                           , 30, 'Purchasing'
+                           , 40, 'Human Resources'
+                           , 50, 'Shipping'
+                           , 60, 'IT'
+                           , 70, 'Public Relations'
+                           , 80, 'Sales'
+                           , 90, 'Executive'
+                           , 100, 'Finance'
+      ) 부서
+FROM employees;
+
+-- 47
+SELECT first_name 이름
+      ,CASE 
+            WHEN department_id = 10 THEN 'Administration'
+            WHEN department_id = 20 THEN 'Marketing'
+            WHEN department_id = 30 THEN 'Puchasing'
+            WHEN department_id = 40 THEN 'Human Resources'
+            WHEN department_id = 50 THEN 'Shipping'
+            WHEN department_id = 60 THEN 'IT'
+            WHEN department_id = 70 THEN 'Public Relations'
+            WHEN department_id = 80 THEN 'Sales'
+            WHEN department_id = 90 THEN 'Executive'
+            WHEN department_id = 100 THEN 'Finance'
+       END 부서
+FROM employees;
+       
+-- 48.
+SELECT COUNT(*) 사원수
+FROM employees;
+
+-- 49.
+SELECT MAX(salary) 최고급여
+      ,MIN(salary) 최저급여
+FROM employees;
+
+-- 50.
+SELECT SUM(salary) 급여합계
+      ,ROUND( AVG(salary), 2) 급여평균
+FROM employees;
+
+-- 51.
+SELECT ROUND( STDDEV(salary), 2) 급여표준편자
+      ,ROUND( VARIANCE(salary), 2) 급여분산
+FROM employees;
+
+--52. MS_STUDENT 테이블 생성하기
+
+-- human 계정 생성
+-- C## 없이 계정 생성
+ALTER SESSION SET "_ORACLE_SCRIPT" = TRUE;
+drop user "human";
+
+-- USER SQL
+CREATE USER human IDENTIFIED BY 123456
+DEFAULT TABLESPACE "USERS"
+TEMPORARY TABLESPACE "TEMP";
+
+-- QUOTAS
+ALTER USER human QUOTA UNLIMITED ON "USERS";
+
+-- ROLES
+GRANT "CONNECT" TO human WITH ADMIN OPTION;
+GRANT "RESOURCE" TO human WITH ADMIN OPTION;
+ALTER USER human DEFAULT ROLE "CONNECT","RESOURCE";
+
+
+CREATE TABLE 테이블명 (
+    컬럼명1    타입  [NOT NULL/NULL] [제약조건],
+    컬럼명2    타입  [NOT NULL/NULL] [제약조건],
+    ...
+);
+
+DROP TABLE MS_STUDENT;
+CREATE TABLE MS_STUDENT 
+(
+      ST_NO         NUMBER NOT NULL     PRIMARY KEY
+    , NAME          VARCHAR2(20) NOT NULL 
+    , CTZ_NO        CHAR(14) NOT NULL 
+    , EMAIL         VARCHAR2(100) NOT NULL UNIQUE
+    , ADDRESS       VARCHAR2(1000) 
+    , DEPT_NO       NUMBER NOT NULL 
+    , MJ_NO         NUMBER NOT NULL 
+    , REG_DATE      DATE DEFAULT SYSDATE NOT NULL 
+    , UPD_DATE      DATE DEFAULT SYSDATE NOT NULL 
+    , ETC           VARCHAR2(1000) DEFAULT '없음'
+);
+COMMENT ON TABLE MS_STUDENT IS '학생정보';
+COMMENT ON COLUMN MS_STUDENT.ST_NO IS '학생번호';
+COMMENT ON COLUMN MS_STUDENT.NAME IS '이름';
+COMMENT ON COLUMN MS_STUDENT.CTZ_NO IS '주민등록번호';
+COMMENT ON COLUMN MS_STUDENT.EMAIL IS '이메일';
+COMMENT ON COLUMN MS_STUDENT.ADDRESS IS '주소';
+COMMENT ON COLUMN MS_STUDENT.DEPT_NO IS '학부번호';
+COMMENT ON COLUMN MS_STUDENT.MJ_NO IS '전공번호';
+COMMENT ON COLUMN MS_STUDENT.REG_DATE IS '등록일자';
+COMMENT ON COLUMN MS_STUDENT.UPD_DATE IS '수정일자';
+COMMENT ON COLUMN MS_STUDENT.ETC IS '특이사항';
+
+
+-- 53. MS_STUDENT 테이블에 속성을 추가
+-- 성별, 재적, 입학일자, 졸업일자 속성 추가
+ALTER TABLE MS_STUDENT ADD GENDER CHAR(6) DEFAULT '기타' NOT NULL;
+COMMENT ON COLUMN MS_STUDENT.GENDER IS '성별';
+
+ALTER TABLE MS_STUDENT ADD STATUS VARCHAR2(10) DEFAULT '대기' NOT NULL;
+COMMENT ON COLUMN MS_STUDENT.STATUS IS '재적';
+
+ALTER TABLE MS_STUDENT ADD ADM_DATE DATE NULL;
+COMMENT ON COLUMN MS_STUDENT.ADM_DATE IS '입학일자';
+
+ALTER TABLE MS_STUDENT ADD GRD_DATE DATE NULL;
+COMMENT ON COLUMN MS_STUDENT.GRD_DATE IS '졸업일자';
+
+-- 속성 제거
+ALTER TABLE MS_STUDENT DROP COLUMN GENDER;
+ALTER TABLE MS_STUDENT DROP COLUMN STATUS;
+ALTER TABLE MS_STUDENT DROP COLUMN ADM_DATE;
+ALTER TABLE MS_STUDENT DROP COLUMN GRD_DATE;
+
+-- 54
+ALTER TABLE MS_STUDENT RENAME COLUMN CTZ_NO TO BIRTH;   -- 컬럼명 변경
+ALTER TABLE MS_STUDENT MODIFY BIRTH DATE;               -- 데이터 타입 변경
+COMMENT ON COLUMN MS_STUDENT.BIRTH IS '생년월일';        -- 설명 변경
+
+-- 55
+ALTER TABLE MS_STUDENT DROP COLUMN DEPT_NO;
+
+
+-- 56
+DROP TABLE MS_STUDENT;
+
+-- 57
+CREATE TABLE MS_STUDENT (
+    ST_NO       NUMBER          NOT NULL PRIMARY KEY,
+    NAME        VARCHAR2(20)    NOT NULL,
+    BIRTH       DATE            NOT NULL,
+    EMAIL       VARCHAR2(100)   NOT NULL    UNIQUE,
+    ADDRESS     VARCHAR2(1000)  NOT NULL  ,
+    MJ_NO       VARCHAR2(10)    NOT NULL  ,
+    GENDER      CHAR(6)         DEFAULT '기타'    NOT NULL ,
+    STATUS      VARCHAR2(10)    DEFAULT '대기'    NOT NULL ,
+    ADM_DATE    DATE            NULL    ,
+    GRD_DATE    DATE            NULL    ,
+    REG_DATE    DATE            DEFAULT sysdate  NOT NULL    ,
+    UPD_DATE    DATE            DEFAULT sysdate  NOT NULL    ,
+    ETC         VARCHAR2(1000)  DEFAULT '없음'    NULL
+);
+
+COMMENT ON TABLE MS_STUDENT IS '학생';
+COMMENT ON COLUMN MS_STUDENT.ST_NO IS '학생번호';
+COMMENT ON COLUMN MS_STUDENT.NAME IS '이름';
+COMMENT ON COLUMN MS_STUDENT.BIRTH IS '생년월일';
+COMMENT ON COLUMN MS_STUDENT.EMAIL IS '이메일';
+COMMENT ON COLUMN MS_STUDENT.ADDRESS IS '주소';
+COMMENT ON COLUMN MS_STUDENT.MJ_NO IS '전공번호';
+COMMENT ON COLUMN MS_STUDENT.GENDER IS '성별';
+COMMENT ON COLUMN MS_STUDENT.STATUS IS '재적';
+COMMENT ON COLUMN MS_STUDENT.ADM_DATE IS '입학일자';
+COMMENT ON COLUMN MS_STUDENT.GRD_DATE IS '졸업일자';
+COMMENT ON COLUMN MS_STUDENT.REG_DATE IS '등록일자';
+COMMENT ON COLUMN MS_STUDENT.UPD_DATE IS '수정일자';
+COMMENT ON COLUMN MS_STUDENT.ETC IS '특이사항';
+
+-- 58
+-- 데이터 추가 
+-- INSERT INTO [테이블명] ( 컬럼1, 컬럼2, ... )
+-- VALUES ( '값1', '값2', ... );
+
+INSERT INTO MS_STUDENT ( ST_NO,NAME,BIRTH,EMAIL,ADDRESS,GENDER,MJ_NO,STATUS,
+                          ADM_DATE ,GRD_DATE,REG_DATE,UPD_DATE,ETC )
+VALUES ( '20180001', '최서아', '991005', 'csa@univ.ac.kr', '서울', '여', 'I01', 
+         '재학', '2018/03/01', NULL, sysdate, sysdate, NULL );
+
+INSERT INTO MS_STUDENT ( ST_NO,NAME,BIRTH,EMAIL,ADDRESS,GENDER,MJ_NO,STATUS,ADM_DATE,GRD_DATE,REG_DATE,UPD_DATE,ETC )
+VALUES ( '20210001', '박서준', '020504', 'psj@univ.ac.kr', '서울', '남', 'B02', '재학', '2021/03/01', NULL, sysdate, sysdate, NULL );
+
+
+INSERT INTO MS_STUDENT ( ST_NO,NAME,BIRTH,EMAIL,ADDRESS,GENDER,MJ_NO,STATUS,ADM_DATE,GRD_DATE,REG_DATE,UPD_DATE,ETC )
+VALUES ( '20210002', '김아윤', '020504', 'kay@univ.ac.kr', '인천', '여', 'S01', '재학', '2021/03/01', NULL, sysdate, sysdate, NULL );
+
+
+INSERT INTO MS_STUDENT ( ST_NO,NAME,BIRTH,EMAIL,ADDRESS,GENDER,MJ_NO,STATUS,ADM_DATE,GRD_DATE,REG_DATE,UPD_DATE,ETC )
+VALUES ( '20160001', '정수안', '970210', 'jsa@univ.ac.kr', '경남', '여', 'J02', '재학', '2016/03/01', NULL, sysdate, sysdate, NULL );
+
+
+INSERT INTO MS_STUDENT ( ST_NO,NAME,BIRTH,EMAIL,ADDRESS,GENDER,MJ_NO,STATUS,ADM_DATE,GRD_DATE,REG_DATE,UPD_DATE,ETC )
+VALUES ( '20150010', '윤도현', '960311', 'ydh@univ.ac.kr', '제주', '남', 'K01', '재학', '2015/03/01', NULL, sysdate, sysdate, NULL );
+
+
+INSERT INTO MS_STUDENT ( ST_NO,NAME,BIRTH,EMAIL,ADDRESS,GENDER,MJ_NO,STATUS,ADM_DATE,GRD_DATE,REG_DATE,UPD_DATE,ETC )
+VALUES ( '20130007', '안아람', '941124', 'aar@univ.ac.kr', '경기', '여', 'Y01', '재학', '2013/03/01', NULL, sysdate, sysdate, '영상예술 특기자' );
+
+
+INSERT INTO MS_STUDENT ( ST_NO,NAME,BIRTH,EMAIL,ADDRESS,GENDER,MJ_NO,STATUS,ADM_DATE,GRD_DATE,REG_DATE,UPD_DATE,ETC )
+VALUES ( '20110002', '한성호', '921007', 'hsh@univ.ac.kr', '서울', '기타', 'E03', '재학', '2015/03/01', NULL, sysdate, sysdate, NULL );
+
+COMMIT;
+         
+SELECT * FROM ms_student;
+
+--59
+-- UPDATE [테이블명]
+--    SET [컬럼1] = '수정값'
+--       ,[컬럼2] = '수정값'
+--  WHERE [컬럼] = [값];
+-- 학번 : 20160001 인 학생을 주소를 '서울', 재적을 '휴학'으로 수정하시오.
+UPDATE ms_student
+   SET address = '서울'
+      ,status = '휴학'
+WHERE st_no = 20160001;
+
+UPDATE MS_STUDENT 
+    SET ADDRESS = '서울', STATUS = '졸업'
+      , GRD_DATE = '2020/02/20', UPD_DATE = '2020/01/01'  
+WHERE ST_NO = '20150010';
+
+UPDATE MS_STUDENT 
+   SET STATUS = '졸업', GRD_DATE = '2020/02/20', UPD_DATE ='2020/01/01' 
+WHERE ST_NO = '20130007';
+
+UPDATE MS_STUDENT 
+SET STATUS = '퇴학', UPD_DATE = '2013/02/10', ETC = '자진 퇴학' 
+WHERE ST_NO = '20110002';
+
+COMMIT;
+
+SELECT * FROM ms_student;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      
+
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
