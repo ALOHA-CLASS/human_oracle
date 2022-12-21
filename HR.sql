@@ -480,6 +480,52 @@ FROM employees
 ORDER BY 최종급여 DESC
 ;
 
+-- COALESCE(인자1, 인자2, ...)
+-- : 인자들 중 NULL 이 아닌 첫번째 값을 반환하는 함수
+SELECT FIRST_NAME 이름
+      ,SALARY 급여
+      ,NVL(COMMISSION_PCT,0) 커미션
+      ,COALESCE( SALARY + (SALARY * COMMISSION_PCT), SALARY  ) 최종급여
+FROM employees
+ORDER BY 최종급여 DESC
+;
+
+-- LNVNL(조건식)
+-- : 조건식의 결과가 
+--    TRUE                     --> FALSE
+--    FALSE 또는 UNKNOWN(NULL)  --> TRUE 반환하는 함수
+-- commission_pct 가 0.2 미만 그리고 NULL 인 사원까지 조회된다.
+SELECT *
+FROM employees
+WHERE LNNVL( commission_pct >= 0.2 );
+
+-- 아래와 같이 조건을 주면, 
+-- commission_pct 가 NULL 인 사원은 포함되지 않는다.
+SELECT *
+FROM employees
+WHERE commission_pct < 0.2 ;
+
+-- 직무 시작일부터 종료일이 1년을 초과하지 않는 데이터를 조회하시오.
+SELECT job_id
+      ,NULLIF( TO_CHAR(start_date, 'YYYY'), TO_CHAR(end_date, 'YYYY') ) null_year
+FROM job_history
+;
+
+-- 
+SELECT first_name
+      ,salary
+      ,NULLIF( salary, 10000 )
+FROM employees
+ORDER BY salary DESC
+;
+
+
+
+
+
+
+
+
 
 -- 46.
 SELECT *
@@ -728,6 +774,208 @@ WHERE ST_NO = '20110002';
 COMMIT;
 
 SELECT * FROM ms_student;
+ 
+-- 60. 데이터 삭제
+DELETE FROM ms_student
+WHERE st_no = '20110002';
+
+-- ROLLBACK : 변경사항을 되돌리는 명령
+ROLLBACK;
+
+-- COMMIT   : 변경사항을 적용하는 명령
+COMMIT;
+
+SELECT * FROM ms_student;
+
+-- 61. ms_student 테이블 조회
+SELECT *
+FROM ms_student;
+
+-- 62. 백업 테이블 생성
+CREATE TABLE MS_STUDENT_BACK
+AS SELECT * FROM MS_STUDENT;
+
+SELECT * FROM MS_STUDENT_BACK;
+
+
+-- 63. 
+DELETE FROM MS_STUDENT;
+COMMIT;
+
+SELECT * FROM MS_STUDENT;
+
+-- 64.
+INSERT INTO MS_STUDENT 
+SELECT * FROM MS_STUDENT_BACK;
+COMMIT;
+
+SELECT * FROM MS_STUDENT;
+
+
+-- 65. 제약 조건 추가
+-- ALTER TABLE [테이블명] ADD CONSTRAINT [제약조건 명] CHECK [제약조건];
+ALTER TABLE MS_STUDENT 
+ADD CONSTRAINT MS_STD_GENDER_CHECK 
+CHECK (gender IN ('여','남','기타') );
+
+INSERT INTO MS_STUDENT ( ST_NO,NAME,BIRTH,EMAIL,ADDRESS,GENDER,MJ_NO,STATUS,
+                          ADM_DATE ,GRD_DATE,REG_DATE,UPD_DATE,ETC )
+VALUES ( '20221234', '김휴먼', '991005', 'khm@univ.ac.kr', '서울', '여', 'I01', 
+         '재학', '2018/03/01', NULL, sysdate, sysdate, NULL );
+
+UPDATE MS_STUDENT
+   SET GENDER = '여자'
+WHERE ST_NO = '20130007';
+
+SELECT * FROM MS_STUDENT;
+
+-- 66.
+CREATE TABLE MS_USER (
+    USER_NO     NUMBER          NOT NULL    PRIMARY KEY,
+    USER_ID     VARCHAR2(100)   NOT NULL    UNIQUE,
+    USER_PW     VARCHAR2(200)   NOT NULL,    
+    USER_NAME   VARCHAR2(50)    NOT NULL,
+    BIRTH       DATE            NOT NULL,
+    TEL         VARCHAR2(20)    NOT NULL    UNIQUE,
+    ADDRESS     VARCHAR(200)    NULL,
+    REG_DATE    DATE            DEFAULT sysdate NOT NULL,
+    UPD_DATE    DATE            DEFAULT sysdate NOT NULL 
+);
+
+COMMENT ON TABLE MS_USER IS '회원';
+COMMENT ON COLUMN MS_USER.USER_NO IS '회원번호';
+COMMENT ON COLUMN MS_USER.USER_ID IS '아이디';
+COMMENT ON COLUMN MS_USER.USER_PW IS '비밀번호';
+COMMENT ON COLUMN MS_USER.USER_NAME IS '이름';
+COMMENT ON COLUMN MS_USER.BIRTH IS '생년월일';
+COMMENT ON COLUMN MS_USER.TEL IS '전화번호';
+COMMENT ON COLUMN MS_USER.ADDRESS IS '주소';
+COMMENT ON COLUMN MS_USER.REG_DATE IS '등록일자';
+COMMENT ON COLUMN MS_USER.UPD_DATE IS '수정일자';
+
+SELECT * FROM MS_USER;
+
+-- 67
+CREATE TABLE MS_BOARD (
+    BOARD_NO    NUMBER          NOT NULL    PRIMARY KEY,
+    TITLE       VARCHAR2(200)   NOT NULL    ,
+    CONTENT     VARCHAR2(100)    NOT NULL    ,
+    WRITER      VARCHAR2(100)   NOT NULL    ,
+    HIT         NUMBER          NOT NULL    ,
+    LIKE_CNT    NUMBER          NOT NULL    ,
+    DEL_YN      CHAR(2)         NULL    ,
+    DEL_DATE    DATE            NULL    ,
+    REG_DATE    DATE            DEFAULT sysdate NOT NULL    ,
+    UPD_DATE    DATE            DEFAULT sysdate NOT NULL    
+);
+
+COMMENT ON TABLE MS_BOARD IS '게시판';
+COMMENT ON COLUMN MS_BOARD.BOARD_NO IS '게시글 번호';
+COMMENT ON COLUMN MS_BOARD.TITLE IS '제목';
+COMMENT ON COLUMN MS_BOARD.CONTENT IS '내용';
+COMMENT ON COLUMN MS_BOARD.WRITER IS '작성자';
+COMMENT ON COLUMN MS_BOARD.HIT IS '조회수';
+COMMENT ON COLUMN MS_BOARD.LIKE_CNT IS '좋아요 수';
+COMMENT ON COLUMN MS_BOARD.DEL_YN IS '삭제여부';
+COMMENT ON COLUMN MS_BOARD.DEL_DATE IS '삭제일자';
+COMMENT ON COLUMN MS_BOARD.REG_DATE IS '등록일자';
+COMMENT ON COLUMN MS_BOARD.UPD_DATE IS '수정일자';
+
+-- 68
+CREATE TABLE MS_FILE (
+    FILE_NO     NUMBER NOT NULL PRIMARY KEY,
+    BOARD_NO    NUMBER NOT NULL,
+    FILE_NAME   VARCHAR2(2000) NOT NULL,
+    FILE_DATA   BLOB NOT NULL,
+    REG_DATE    DATE DEFAULT SYSDATE NOT NULL,
+    UPD_DATE    DATE DEFAULT SYSDATE NOT NULL
+);
+
+COMMENT ON TABLE MS_FILE IS '첨부파일';
+COMMENT ON COLUMN MS_FILE.FILE_NO IS '파일번호';
+COMMENT ON COLUMN MS_FILE.BOARD_NO IS '글번호';
+COMMENT ON COLUMN MS_FILE.FILE_NAME IS '파일명';
+COMMENT ON COLUMN MS_FILE.FILE_DATA IS '파일';
+COMMENT ON COLUMN MS_FILE.REG_DATE IS '등록일자';
+COMMENT ON COLUMN MS_FILE.UPD_DATE IS '수정일자';
+
+
+-- 69.
+CREATE TABLE MS_REPLY (
+    REPLY_NO    NUMBER NOT NULL PRIMARY KEY,
+    BOARD_NO    NUMBER NOT NULL ,
+    CONTENT     VARCHAR2(2000) NOT NULL,
+    WRITER      VARCHAR2(100) NOT NULL,
+    DEL_YN      CHAR(2) DEFAULT 'N' NULL,
+    DEL_DATE    DATE    NULL,
+    REG_DATE    DATE    DEFAULT sysdate NOT NULL,
+    UPD_DATE    DATE    DEFAULT sysdate NOT NULL
+);
+
+COMMENT ON TABLE MS_REPLY IS '댓글';
+COMMENT ON COLUMN MS_REPLY.REPLY_NO IS '댓글번호';
+COMMENT ON COLUMN MS_REPLY.BOARD_NO IS '글번호';
+COMMENT ON COLUMN MS_REPLY.CONTENT IS '내용';
+COMMENT ON COLUMN MS_REPLY.WRITER IS '작성자';
+COMMENT ON COLUMN MS_REPLY.DEL_YN IS '삭제여부';
+COMMENT ON COLUMN MS_REPLY.DEL_DATE IS '삭제일자';
+COMMENT ON COLUMN MS_REPLY.REG_DATE IS '등록일자';
+COMMENT ON COLUMN MS_REPLY.UPD_DATE IS '수정일자';
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
