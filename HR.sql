@@ -923,6 +923,342 @@ COMMENT ON COLUMN MS_REPLY.REG_DATE IS '등록일자';
 COMMENT ON COLUMN MS_REPLY.UPD_DATE IS '수정일자';
 
 
+-- 70
+-- 덤프파일 가져오기(import)
+-- import 시, 
+-- dmp 파일의 생성한 계정과 다른 계정으로 가져올 때는
+-- system 계정 또는 가져올 계정으로 접속하여 명령어를 실행해야한다.
+imp userid=system/123456 file=C:\KHM\SQL\human\community.dmp fromuser=human touser=human2;
+
+-- human2 계정 생성
+ALTER SESSION SET "_ORACLE_SCRIPT" = TRUE;
+CREATE USER human2 IDENTIFIED BY 123456;
+ALTER USER human2 DEFAULT TABLESPACE users;
+ALTER USER human2 QUOTA UNLIMITED ON users;
+GRANT connect, resource TO human2;
+
+-- humna 계정에 DBA 권한 부여
+GRANT dba TO human;
+GRANT dba TO human2;
+
+-- 71
+-- 덤프파일 생성하기(export)
+exp userid=human/123456 file=C:\KHM\SQL\human\community.dmp log=C:\KHM\SQL\human\community.log 
+;
+--
+expdp human/123456 directory=C:\KHM\SQL\human dumpfile=community2.dmp log=community2.log version=11
+;
+
+
+
+
+
+-- 72
+-- MS_BOARD 테이블의 WRITER 속성의 데이터타입을 NUMBER 로 변경
+ALTER TABLE ms_board MODIFY writer NUMBER;
+
+-- MS_BOARD 테이블의 외래키 삭제
+ALTER TABLE ms_board DROP CONSTRAINT MS_BOARD_WRITER_FK;
+
+-- MS_BOARD 테이블의 WRITER 속성을 외래키로 지정
+ALTER TABLE ms_board 
+ADD CONSTRAINT MS_BOARD_WRITER_FK FOREIGN KEY (writer) REFERENCES ms_user(user_no);
+
+-- MS_FILE 테이블의 외래키 삭제
+ALTER TABLE ms_file DROP CONSTRAINT MS_FILE_BOARD_NO_FK;
+
+-- MS_FILE 테이블의 BOARD_NO 속성을 외래키로 지정
+ALTER TABLE ms_file
+ADD CONSTRAINT MS_FILE_BOARD_NO_FK FOREIGN KEY (board_no) REFERENCES ms_board(board_no);
+
+-- MS_REPLY 테이블의 외래캐 삭제
+ALTER TABLE ms_reply DROP CONSTRAINT MS_REPLY_BOARD_NO_FK;
+
+-- MS_REPLY 테이블의 BOARD_NO 속성을 외래키로 지정
+ALTER TABLE ms_reply 
+ADD CONSTRAINT MS_REPLY_BOARD_NO_FK FOREIGN KEY (board_no) REFERENCES ms_board(board_no);
+
+-- 73.
+-- MS_USER 테이블에 CTZ_NO, GENDER 속성을 추가
+ALTER TABLE MS_USER ADD CTZ_NO CHAR(14) NOT NULL UNIQUE;
+ALTER TABLE MS_USER ADD GENDER CHAR(6) NOT NULL;
+
+COMMENT ON COLUMN MS_USER.CTZ_NO IS '주민번호';
+COMMENT ON column MS_USER.GENDER IS '성별';
+
+DESC MS_USER;
+
+-- 74.
+-- MS_USER 테이블의 GENDER 속성에 ('여','남','기타') 값만 갖도로 제약조건 추가
+ALTER TABLE MS_USER 
+ADD CONSTRAINT MS_USER_GENDER_CHECK CHECK (GENDER IN ('여','남', '기타'));
+
+-- 75. 
+-- MS_FILE 테이블에 EXT(확장자) 속성을 추가
+ALTER TABLE MS_FILE ADD EXT VARCHAR2(10) NULL;
+COMMENT ON COLUMN MS_FILE.EXT IS '확장자';
+
+
+76. 
+-- 강아지.jpg, 휴먼교육센터.png
+MERGE INTO MS_FILE T
+USING (SELECT FILE_NO, FILE_NAME FROM MS_FILE ) F ON (T.FILE_NO = F.FILE_NO)
+WHEN MATCHED THEN
+    UPDATE SET T.EXT = SUBSTR(F.FILE_NAME, INSTR(F.FILE_NAME, '.', -1) + 1)
+    DELETE 
+    WHERE SUBSTR(F.FILE_NAME, INSTR(F.FILE_NAME, '.', -1) + 1) 
+    NOT IN ('jpeg','jpg','png','gif')
+;
+
+-- 문자열에서 확장자 추출하기
+SELECT SUBSTR( '강아지.jpg', INSTR('강아지.jpg', '.', -1) + 1 ) 확장자 
+      ,INSTR('강아지.jpg', '.', -1) ".위치"
+FROM dual;
+
+-- 테스트 데이터 추가
+INSERT INTO MS_USER 
+(user_no, user_id, user_pw, user_name, birth, 
+  tel, address, reg_date, upd_date, ctz_no, gender)
+VALUES (1, 'HUMAN', '123456', '김휴먼', '2002/03/23' , '010-1234-XXXX',
+        '영등포', sysdate, sysdate, '020323-3xxxxxx', '기타' );
+
+INSERT INTO MS_BOARD 
+(board_no, title, content, writer, hit, like_cnt, del_yn, del_date, reg_date, upd_date)
+VALUES (2, '제목', '내용', 1,1,0, 'N', sysdate, sysdate, sysdate);
+
+INSERT INTO MS_FILE
+(file_no, board_no, file_name, file_data, reg_date, upd_date, ext )
+VALUES (2, 2, '강아지.png', '123', sysdate, sysdate, 'jpg' );
+
+INSERT INTO MS_FILE
+(file_no, board_no, file_name, file_data, reg_date, upd_date, ext )
+VALUES (4, 2, '학습자료.pdf', '123', sysdate, sysdate, 'pdf' );
+
+INSERT INTO MS_FILE
+(file_no, board_no, file_name, file_data, reg_date, upd_date, ext )
+VALUES (5, 2, '학습자료2.pdf', '123', sysdate, sysdate, 'jpg' );
+
+SELECT * FROM MS_USER;
+SELECT * FROM MS_BOARD;
+SELECT * FROM MS_FILE;
+commit;
+
+
+-- 77
+ALTER TABLE MS_FILE ADD CONSTRAINT MS_FILE_EXT_CHECK 
+CHECK (EXT IN ('jpg','jpeg','gif','png'));
+
+
+-- 78.
+TRUNCATE TABLE MS_USER;
+TRUNCATE TABLE MS_BOARD;
+TRUNCATE TABLE MS_FILE;
+TRUNCATE TABLE MS_REPLY;
+
+-- 79.
+ALTER TABLE MS_BOARD DROP COLUMN WRITER;
+ALTER TABLE MS_FILE DROP COLUMN BOARD_NO;
+ALTER TABLE MS_REPLY DROP COLUMN BOARD_NO;
+
+-- 80.
+-- MS_BOARD 테이블에 WRITER 속성 추가
+ALTER TABLE MS_BOARD ADD WRITER NUMBER NOT NULL;
+
+-- MS_BOARD 의 WRITER 속성을 외래키로 지정
+-- 참조 테이블의 데이터 삭제 시, 연쇄적으로 데이터가 삭제되도로 옵션 지정
+ALTER TABLE MS_BOARD 
+ADD CONSTRAINT MS_BOARD_WRITER_FK FOREIGN KEY (WRITER)
+REFERENCES MS_USER(USER_NO) 
+ON DELETE CASCADE;
+
+-- MS_FILE 테이블에 BOARD_NO 속성 추가
+ALTER TABLE MS_FILE ADD BOARD_NO NUMBER NOT NULL;
+
+-- MS_FILE 테이블의 BOARD_NO 속성을 외래키로 지정
+-- 참조 테이블의 데이터 삭제 시, 연쇄적으로 데이터가 삭제되도록 옵션 지정
+ALTER TABLE MS_FILE ADD CONSTRAINT MS_FILE_BOARD_NO_FK
+FOREIGN KEY (BOARD_NO) 
+REFERENCES MS_BOARD(BOARD_NO)
+ON DELETE CASCADE;
+
+-- MS_REPLY 테이블에 BOARD_NO 속성 추가
+ALTER TABLE MS_REPLY ADD BOARD_NO NUMBER NOT NULL;
+
+-- MS_REPLY 테이블의 BOARD_NO 속성을 외래키로 지정
+-- 참조 테이블의 데이터 삭제 시, 연쇄적으로 데이터가 삭제되도록 옵션 지정
+ALTER TABLE MS_REPLY ADD CONSTRAINT MS_REPLY_BOARD_NO_FK
+FOREIGN KEY (BOARD_NO)
+REFERENCES MS_BOARD(BOARD_NO)
+ON DELETE CASCADE;
+
+
+-- 81
+DROP TABLE MS_FILE;
+DROP TABLE MS_REPLY;
+DROP TABLE MS_BOARD;
+DROP TABLE MS_STUDENT;
+DROP TABLE MS_STUDENT_BACK;
+DROP TABLE MS_USER;
+
+-- CMD
+imp userid=system/123456 file=C:\KHM\SQL\human\human.dmp fromuser=human touser=human;
+
+
+-- 81.
+SELECT * FROM employee;
+SELECT * FROM department;
+SELECT * FROM job;
+
+--
+SELECT EMP_ID AS 사원번호
+      ,EMP_NAME AS 직원명
+      ,(SELECT DEPT_TITLE FROM DEPARTMENT D WHERE D.DEPT_ID = E.DEPT_CODE) 부서명
+      ,(SELECT JOB_NAME FROM JOB J WHERE J.JOB_CODE = E.JOB_CODE) 직급명
+FROM EMPLOYEE E;
+
+
+-- JOIN
+
+-- INNER JOIN
+SELECT e.emp_id
+      ,e.emp_name
+      ,d.dept_id
+      ,d.dept_title
+FROM employee e INNER JOIN department d ON e.dept_code = d.dept_id
+;
+
+-- EQUI JOIN
+SELECT e.emp_id
+      ,e.emp_name
+      ,d.dept_id
+      ,d.dept_title
+FROM employee e, department d
+WHERE e.dept_code = d.dept_id
+;
+
+
+-- SEMI JOIN (EXISTS)
+SELECT dept_id
+      ,dept_title
+FROM department d
+WHERE EXISTS ( SELECT * FROM employee e 
+               WHERE e.dept_code = d.dept_id
+                 AND e.salary > 2000000
+              )
+;
+
+-- SEMI JOIN (IN)
+SELECT dept_id, dept_title
+FROM department d
+WHERE d.dept_id IN (
+                        SELECT e.dept_code
+                        FROM employee e
+                        WHERE e.salary > 2000000
+                    )
+;
+
+-- 테이블 일괄삭제
+SELECT 'DROP TABLE ' || object_name || ' CASCADE CONSTRAINTS;' "테이블 전체 삭제"
+FROM    user_objects
+WHERE   object_type = 'TABLE';
+
+
+-- OUTER JOIN
+
+-- LEFT OUTER JOIN
+SELECT e.emp_id
+      ,e.emp_name
+      ,d.dept_id
+      ,d.dept_title
+FROM employee e LEFT OUTER JOIN department d
+                ON e.dept_code = d.dept_id
+;
+
+-- RIGTH OUTER JOIN
+SELECT e.emp_id
+      ,e.emp_name
+      ,d.dept_id
+      ,d.dept_title
+FROM employee e RIGHT OUTER JOIN department d
+                ON e.dept_code = d.dept_id
+;
+
+-- FULL OUTER JOIN
+SELECT e.emp_id
+      ,e.emp_name
+      ,d.dept_id
+      ,d.dept_title
+FROM employee e FULL OUTER JOIN department d
+                ON e.dept_code = d.dept_id
+;
+
+-- 82
+-- 사원번호, 직원명, 부서명, 급여, 최고급여, 최저급여, 평균급여
+SELECT e.emp_id 사원번호
+      ,e.emp_name 직원명
+      ,d.dept_title 부서명
+      ,e.salary 급여
+      ,t.max_sal 최고급여
+      ,t.min_sal 최저급여
+      ,ROUND(t.avg_sal, 2) 평균급여
+FROM employee e LEFT JOIN department d ON (dept_code = dept_id)
+    ,( SELECT DEPT_CODE, MAX(salary) MAX_SAL, MIN(salary) MIN_SAL, AVG(salary) AVG_SAL
+       FROM employee
+       GROUP BY dept_code
+     ) t
+WHERE e.salary = t.max_sal
+;
+
+                
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1148,6 +1484,7 @@ COMMENT ON COLUMN MS_REPLY.UPD_DATE IS '수정일자';
 
 
       
+
 
 
 
