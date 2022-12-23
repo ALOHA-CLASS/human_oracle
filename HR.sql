@@ -1210,44 +1210,397 @@ WHERE e.salary = t.max_sal
 ;
 
                 
+-- 83. 
+-- 1단계
+-- 직원명이 ‘이태림＇인 사원을 조회
+SELECT emp_name, dept_code
+FROM employee
+WHERE emp_name = '이태림';
+
+-- '이태림' 사원과 같은 부서의 직원들의 사원번호, 직원명, 이메일, 전화번호를 조회
+SELECT emp_id 사원번호
+      ,emp_name 직원명
+      ,email 이메일
+      ,phone 전화번호
+FROM employee
+WHERE dept_code = (
+                    SELECT dept_code
+                    FROM employee
+                    WHERE emp_name = '이태림'
+                   );
+
+-- 84.
+-- 사원이 존재하는 부서만 조회하시오.
+-- 1단계 
+-- 부서코드가 NULL 이 아닌 사원들의 부서코드를 중복없이 조회
+SELECT DISTINCT dept_code
+FROM employee
+WHERE dept_code IS NOT NULL
+;
+
+-- 사원 테이블의 존재하는 부서코드만 포함하는 부서 테이블의 행을 조회
+-- 84 - 1번 해결방법
+SELECT dept_id 부서번호
+      ,dept_title 부서명
+      ,location_id 지역명
+FROM department
+WHERE dept_id IN (
+                    SELECT DISTINCT dept_code
+                    FROM employee
+                    WHERE dept_code IS NOT NULL
+                 )
+ORDER BY dept_id ASC
+;
+
+-- 84 - 2번 해결방법
+SELECT dept_id 부서번호
+      ,dept_title 부서명
+      ,location_id 지역명
+FROM department d
+WHERE EXISTS ( SELECT * FROM employee e WHERE e.dept_code = d.dept_id )
+ORDER BY d.dept_id;
+
+-- 85
+-- 사원이 존재하지 않는 부서 테이블의 부서번호, 부서명, 지역명을 조회
+-- 85 - 1번 해결방법
+SELECT dept_id 부서번호
+      ,dept_title 부서명
+      ,location_id 지역명
+FROM department
+WHERE dept_id NOT IN (
+                    SELECT DISTINCT dept_code
+                    FROM employee
+                    WHERE dept_code IS NOT NULL
+                 )
+ORDER BY dept_id ASC;
+-- 85 - 2번 해결방법
+SELECT dept_id 부서번호
+      ,dept_title 부서명
+      ,location_id 지역명
+FROM department d
+WHERE NOT EXISTS ( SELECT * FROM employee e WHERE e.dept_code = d.dept_id )
+ORDER BY d.dept_id;
+
+
+-- 86.
+-- 1단게
+-- 사원 테이블과 부서 테이블을 조인하여 사원번호,직원명,부서번호,부서명,급여를 조회
+SELECT e.emp_id 사원번호
+      ,e.emp_name 직원명
+      ,d.dept_id 부서번호
+      ,d.dept_title 부서명
+      ,e.salary 급여
+FROM employee e
+    ,department d
+WHERE e.dept_code = d.dept_id;
+-- 부서코드 'D1' 부서의 최대 급여보다 높은 급여를 받는 사원을 조회
+-- 86 - 1번 해결방법
+SELECT e.emp_id 사원번호
+      ,e.emp_name 직원명
+      ,d.dept_id 부서번호
+      ,d.dept_title 부서명
+      ,TO_CHAR( e.salary, '999,999,999,999' ) 급여
+FROM employee e
+    ,department d
+WHERE e.dept_code = d.dept_id
+  AND salary > ( SELECT MAX(salary) FROM employee WHERE dept_code = 'D1' )
+ORDER BY salary ASC
+;
+
+-- 86번 - 2번 해결방법
+-- 조건식 ALL
+SELECT e.emp_id 사원번호
+      ,e.emp_name 직원명
+      ,d.dept_id 부서번호
+      ,d.dept_title 부서명
+      ,TO_CHAR( e.salary, '999,999,999,999' ) 급여
+FROM employee e
+    ,department d
+WHERE e.dept_code = d.dept_id
+  AND salary > ALL( SELECT salary FROM employee WHERE dept_code = 'D1' )
+ORDER BY salary ASC
+;
+
+
+
+--87
+-- 부서코드 'D9' 부서의 최저 급여보다 높은 급여를 받는 사원을 조회
+-- 87 - 1번 해결방법
+SELECT e.emp_id 사원번호
+      ,e.emp_name 직원명
+      ,d.dept_id 부서번호
+      ,d.dept_title 부서명
+      ,TO_CHAR( e.salary, '999,999,999,999' ) 급여
+FROM employee e
+    ,department d
+WHERE e.dept_code = d.dept_id
+  AND salary > ( SELECT MIN(salary) FROM employee WHERE dept_code = 'D9' )
+ORDER BY salary DESC
+;
+
+-- 87 - 2번 해결방법
+-- 조건식 ANY
+SELECT e.emp_id 사원번호
+      ,e.emp_name 직원명
+      ,d.dept_id 부서번호
+      ,d.dept_title 부서명
+      ,TO_CHAR( e.salary, '999,999,999,999' ) 급여
+FROM employee e
+    ,department d
+WHERE e.dept_code = d.dept_id
+  AND salary > ANY( SELECT salary FROM employee WHERE dept_code = 'D9' )
+ORDER BY salary DESC;
+
+-- 88
+-- 테이블 EMPLOYEE 와 DEPARTMENT 를 조인하여 출력하되, 
+-- 부서가 없는 직원도 포함하여, 사원번호, 직원명, 부서번호, 부서명 출력하시오.
+SELECT NVL( e.emp_id, '(없음)' ) 사원번호
+      ,NVL( e.emp_name, '(없음)' ) 직원명
+      ,NVL( d.dept_id, '(없음)' ) 부서번호
+      ,NVL( d.dept_title, '(없음)' ) 부서명
+FROM employee e 
+     LEFT JOIN department d ON ( e.dept_code = d.dept_id );
+
+
+-- 89
+-- 테이블 EMPLOYEE 와 DEPARTMENT 를 조인하여 출력하되, 
+-- 직원이 없는 부서도 포함하여, 사원번호, 직원명, 부서번호, 부서명 출력하시오.
+
+SELECT NVL( e.emp_id, '(없음)' ) 사원번호
+      ,NVL( e.emp_name, '(없음)' ) 직원명
+      ,NVL( d.dept_id, '(없음)' ) 부서번호
+      ,NVL( d.dept_title, '(없음)' ) 부서명
+FROM employee e
+     RIGHT JOIN department d ON ( e.dept_code = d.dept_id );
+     
 
 
 
 
+-- 90
+-- 테이블 EMPLOYEE 와 DEPARTMENT 를 조인하여 출력하되, 
+-- 직원 및 부서 유무에 상관없이 출력하는, 사원번호, 직원명, 부서번호, 부서명 출력하시오.
+SELECT NVL( e.emp_id, '(없음)' ) 사원번호
+      ,NVL( e.emp_name, '(없음)' ) 직원명
+      ,NVL( d.dept_id, '(없음)' ) 부서번호
+      ,NVL( d.dept_title, '(없음)' ) 부서명
+FROM employee e
+     FULL JOIN department d ON ( e.dept_code = d.dept_id );
+     
+-- 91
+-- 사원번호, 직원명, 부서번호, 부서명, 지역명, 국가명, 급여, 입사일자
+SELECT e.emp_id 사원번호
+      ,e.emp_name 직원명
+      ,d.dept_id 부서번호
+      ,d.dept_title 부서명
+      ,l.local_name 지역명
+      ,n.national_name 국가명
+      ,e.salary 급여
+      ,e.hire_date 입사일자
+FROM employee e
+     LEFT JOIN department d ON e.dept_code = d.dept_id
+     LEFT JOIN location l ON d.location_id = l.local_code
+     LEFT JOIN national n USING(national_code)
+;
+-- USING : 조인하고자 하는 두 테이블의 컬럼명이 같은 경우, 
+-- 조인 조건을 간단하게 작성하는 키워드
+     
+--92
+-- 사원번호, 직원명, 부서명, 직급, 구분
+-- 사원들 중 매니저를 출력하시오.
+-- 1단계
+-- manager_id 컬럼이 NULL 이 아닌 사원 조회
+SELECT DISTINCT manager_id 
+FROM employee
+WHERE manager_id IS NOT NULL;
+
+-- 2단계
+-- employee, department, job 테이블을 조인하여 조회
+SELECT e.emp_id 사원번호
+      ,e.emp_name 직원명
+      ,d.dept_title 부서명
+      ,j.job_name 직급
+      ,'매니저' 구분
+FROM employee e
+     LEFT JOIN department d ON e.dept_code = d.dept_id
+     JOIN job j USING(job_code)
+;
+
+-- 3단계
+SELECT e.emp_id 사원번호
+      ,e.emp_name 직원명
+      ,d.dept_title 부서명
+      ,j.job_name 직급
+      ,'매니저' 구분
+FROM employee e
+     LEFT JOIN department d ON e.dept_code = d.dept_id
+     JOIN job j USING(job_code)
+WHERE emp_id IN ( 
+                    SELECT DISTINCT manager_id 
+                    FROM employee
+                    WHERE manager_id IS NOT NULL
+                );
 
 
+--93
+-- 사원번호, 직원명, 부서명, 직급, 구분
+-- 사원들 중 일반사원(매니저가 아닌)을 출력하시오.
+SELECT e.emp_id 사원번호
+      ,e.emp_name 직원명
+      ,d.dept_title 부서명
+      ,j.job_name 직급
+      ,'사원' 구분
+FROM employee e
+     LEFT JOIN department d ON e.dept_code = d.dept_id
+     JOIN job j USING(job_code)
+WHERE emp_id NOT IN ( 
+                    SELECT DISTINCT manager_id 
+                    FROM employee
+                    WHERE manager_id IS NOT NULL
+                );
+
+-- 94.
+-- 사원들을 매니저와 사원으로 구분하여 모두 출력하시오
+-- 단, UNION 키워드를 사용하시오.
+SELECT e.emp_id 사원번호
+      ,e.emp_name 직원명
+      ,d.dept_title 부서명
+      ,j.job_name 직급
+      ,'매니저' 구분
+FROM employee e
+     LEFT JOIN department d ON e.dept_code = d.dept_id
+     JOIN job j USING(job_code)
+WHERE emp_id IN ( 
+                    SELECT DISTINCT manager_id 
+                    FROM employee
+                    WHERE manager_id IS NOT NULL
+                )
+UNION
+SELECT e.emp_id 사원번호
+      ,e.emp_name 직원명
+      ,d.dept_title 부서명
+      ,j.job_name 직급
+      ,'사원' 구분
+FROM employee e
+     LEFT JOIN department d ON e.dept_code = d.dept_id
+     JOIN job j USING(job_code)
+WHERE emp_id NOT IN ( 
+                    SELECT DISTINCT manager_id 
+                    FROM employee
+                    WHERE manager_id IS NOT NULL
+                )
+;
+
+-- 95
+SELECT e.emp_id 사원번호
+      ,e.emp_name  직원명
+      ,d.dept_title 부서명
+      ,j.job_name 직급
+      , CASE
+            WHEN e.emp_id IN (
+                              SELECT DISTINCT manager_id 
+                              FROM employee
+                              WHERE manager_id IS NOT NULL
+                            )
+            THEN '매니저'
+            ELSE '사원'
+        END 구분
+FROM employee e
+     LEFT JOIN department d ON e.dept_code = d.dept_id
+     JOIN job j USING(job_code)
+;
+
+-- 96
+-- 주민등록번호 뒷자리가 첫글자가 1 또는 3 이면 남자
+--                            2 또는 4 이면 여자
+
+-- XX800101-
+-- XX050101-
+-- 주민등록번호 뒷자리가 첫글자가 1,2,5,6 이면 19XX 년생
+--                            3,4,7,8 이면 20XX 년생  
+--                            9,0     이면 18XX 년생
+SELECT emp_id 사원번호
+      ,emp_name 직원명
+      ,dept_title 부서명
+      ,job_name 직급
+      ,CASE 
+            WHEN emp_id IN (
+                             SELECT DISTINCT manager_id
+                             FROM employee
+                             WHERE manager_id IS NOT NULL
+                            ) THEN '매니저'
+            ELSE '사원' 
+        END 구분
+      ,CASE 
+            WHEN SUBSTR(emp_no, 8, 1) IN ('1','3') THEN '남자'
+            WHEN SUBSTR(emp_no, 8, 1) IN ('2','4') THEN '여자'
+       END 성별
+      , EXTRACT( year FROM sysdate)
+        -
+        (
+            CASE 
+                WHEN SUBSTR(emp_no, 8, 1) IN ('1','2','5','6') THEN '19'
+                WHEN SUBSTR(emp_no, 8, 1) IN ('3','4','7','8') THEN '20'
+                WHEN SUBSTR(emp_no, 8, 1) IN ('9','0') THEN '18'
+            END || SUBSTR(emp_no, 1, 2) 
+        ) + 1 나이
+      ,RPAD( SUBSTR(emp_no, 1, 8), 14, '*' ) 주민등록번호
+FROM employee
+     LEFT JOIN department ON dept_code = dept_id
+     JOIN job USING(job_code)
+;
+
+-- EXTRACT()
+-- 날짜 데이터로 부터 날짜정보(연,월,일,시,분,초)를 추출하는 함수
+SELECT sysdate
+      ,EXTRACT ( year FROM sysdate ) 연
+      ,EXTRACT ( month FROM sysdate ) 월
+      ,EXTRACT ( day FROM sysdate ) 일
+FROM dual;
+
+SELECT systimestamp
+      ,EXTRACT ( year FROM systimestamp ) 연
+      ,EXTRACT ( month FROM systimestamp ) 월
+      ,EXTRACT ( day FROM systimestamp ) 일
+      ,EXTRACT ( hour FROM systimestamp ) 시
+      ,EXTRACT ( minute FROM systimestamp ) 분
+      ,EXTRACT ( second FROM systimestamp ) 초
+FROM dual;
 
 
+--
+SELECT e.emp_id 사원번호
+      ,e.emp_name 사원명
+      ,d.dept_title 부서명
+      ,J.JOB_NAME  직급
+      ,
+       CASE 
+            WHEN SUBSTR(E.EMP_ID, 8, 1) = '1' THEN '남자'
+            ELSE '여자'      
+       END 성별
+      ,
+       TRUNC
+        (
+        MONTHS_BETWEEN(
+                        TRUNC(SYSDATE), 
+                        TO_DATE( CONCAT('19',SUBSTR(E.EMP_NO, 1, 6) ), 'YYYYMMDD')
+                       ) / 12          
+        ) +1 현재나이
+      ,RPAD(SUBSTR(E.EMP_NO, 1, 8), 14, '*') 주민등록번호
+      ,
+      CASE 
+        WHEN E.EMP_ID NOT IN (
+            SELECT DISTINCT MANAGER_ID 
+            FROM EMPLOYEE E
+            WHERE MANAGER_ID IS NOT NULL)
+        THEN '사원'
+        ELSE '매니저'     
+      END 구분
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+FROM EMPLOYEE E 
+         LEFT JOIN DEPARTMENT D ON E.dept_code = D.dept_id
+              JOIN JOB J USING(JOB_CODE)
+;
 
 
 
@@ -1381,17 +1734,6 @@ WHERE e.salary = t.max_sal
       
       
       
-
-
-
-
-
-
-
-
-
-
-
 
 
 
