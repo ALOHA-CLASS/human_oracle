@@ -1603,61 +1603,413 @@ FROM EMPLOYEE E
 ;
 
 
+-- 그룹 관련 함수
+-- ROLLUP 미사용 
+SELECT dept_code, job_code
+      ,COUNT(*), MAX(salary), SUM(salary), TRUNC( AVG(salary), 2)
+FROM employee
+GROUP BY dept_code, job_code
+ORDER BY dept_code, job_code
+;
+
+-- ROLLUP 사용
+-- : 그룹 기준으로 집계한 결과와 추가적으로 총 집계 정보를 출력하는 함수
+SELECT dept_code, job_code
+      ,COUNT(*), MAX(salary), SUM(salary), TRUNC( AVG(salary), 2)
+FROM employee
+GROUP BY ROLLUP(dept_code, job_code)
+ORDER BY dept_code, job_code
+;
+
+
+-- CUBE 사용
+-- : 가능한 모든 조합별로의 집계정보를 출력한다.
+SELECT dept_code, job_code
+      ,COUNT(*), MAX(salary), SUM(salary), TRUNC( AVG(salary), 2)
+FROM employee
+GROUP BY CUBE(dept_code, job_code)
+ORDER BY dept_code, job_code
+;
+
+-- GROUPING SETS( )
+-- : 그룹컬럼이 여러 개 일 때, 집계한 정보를 컬럼별로 출력하는 함수
+-- 특정 부서의 직급별 인원 수
+SELECT dept_code, job_code, COUNT(*)
+FROM employee
+GROUP BY GROUPING SETS( dept_code, job_code )
+ORDER BY dept_code, job_code
+;
+
+-- GROUPING
+-- : 그룹화한 컬럼들이 그룹화가 이루어진 상태인지 그 여부를 출력하는 함수
+--   그룹화 O : 출력결과 0
+--   그룹화 X : 출력결과 1
+SELECT 컬럼1, 컬럼2, 컬럼3, ...
+      ,GROUPING 그룹화 여부를 확인할 컬럼, ...
+FROM 테이블명
+GROUP BY [ROLLUP || CUBE] 그룹컬럼;
+
+--
+SELECT dept_code, job_code, MAX(salary), SUM(salary), TRUNC( AVG(salary), 2 )
+      ,GROUPING(dept_code) "부서코드 그룹여부"
+      ,GROUPING(job_code) "직급코드 그룹여부"
+FROM employee
+WHERE dept_code IS NOT NULL
+  AND job_code IS NOT NULL
+GROUP BY CUBE (dept_code, job_code)
+ORDER BY dept_code, job_code;
+
+-- LISTAGG(나열할 컬럼, [구분자])
+-- LIST + Aggregate
+-- 데이터목록 + 합쳐서 출력하는 함수
+-- WITHIN GROUP (ORDER BY 정렬기준 컬럼)
+-- : 그룹컬럼을 기준으로, 그룹화된 데이터를 하나의 열에 가로로 나열하여 출력하는 함수
+SELECT *
+FROM employees
+WHERE department_id = 50
+;
+
+-- GROUP BY 그룹기준 컬럼으로 
+-- first_name 을 지정하지 않으면,
+-- SELECT 절에서 first_name 명시해서 조회하여 출력할 수 없다.
+SELECT department_id, first_name
+FROM employees
+GROUP BY department_id, first_name
+;
+
+-- 부서코드별로 부서코드와 각 부서의 사원이름을 이름 순으로 나열하여 출력하시오.
+SELECT dept_code 부서코드
+      ,LISTAGG( emp_name, ', ' )
+       WITHIN GROUP (ORDER BY emp_name) "부서별 사원이름목록"
+FROM employee
+GROUP BY dept_code
+ORDER BY dept_code
+;
+
+-- PIVOT
+-- : 그룹화한 행 데이터를 열로 바꾸어서 출력하는 함수
+SELECT dept_code, job_code
+      , LISTAGG(emp_name, ', ')
+        WITHIN GROUP(ORDER BY salary DESC) "부서별 사원목록"
+      , MAX(salary) 최대급여
+FROM employee
+GROUP BY dept_code, job_code
+ORDER BY dept_code, job_code
+;
+
+-- PITVOT 함수를 이용해서 직급은 행에, 부서는 열에 그룹화하여 최고급여를 출력하시오. 
+SELECT *
+FROM ( 
+        SELECT dept_code, job_code, salary
+        FROM employee
+     )
+     PIVOT (
+        MAX(salary)
+        FOR dept_code IN ('D1','D2','D3','D4','D5','D6','D7','D8','D9')
+    )
+ORDER BY job_code
+;
+
+-- PITVOT 함수를 이용해서 부서는 행에, 직급은 열에 그룹화하여 최고급여를 출력하시오. 
+SELECT *
+FROM  (
+        SELECT job_code, dept_code, salary
+        FROM employee
+      )
+      PIVOT (
+        MAX(salary)
+        FOR job_code IN ('J1','J2','J3','J4','J5','J6','J7')
+      )
+ORDER BY dept_code
+;
+
+
+-- UNPIVOT
+-- : 그룹화된 결과인 열을 행 데이터로 바꾸어서 출력하는 함수
+SELECT *
+    FROM (
+        select dept_code
+              ,MAX( DECODE(job_code, 'J1', salary ) ) J1 -- "대표 최대급여"
+              ,MAX( DECODE(job_code, 'J2', salary ) ) J2 -- "부사장 최대급여"
+              ,MAX( DECODE(job_code, 'J3', salary ) ) J3 -- "부장 최대급여"
+              ,MAX( DECODE(job_code, 'J4', salary ) ) J4 -- "차장 최대급여"
+              ,MAX( DECODE(job_code, 'J5', salary ) ) J5 -- "과장 최대급여"
+              ,MAX( DECODE(job_code, 'J6', salary ) ) J6 -- "대리 최대급여"
+              ,MAX( DECODE(job_code, 'J7', salary ) ) J7 -- "사원 최대급여"
+        FROM employee
+        GROUP BY dept_code
+        ORDER BY dept_code
+    )
+    UNPIVOT (
+        salary
+        FOR job_code IN (J1,J2,J3,J4,J5,J6,J7)
+    )
+;
+
+-- 조인
+-- 동등조인
+-- : 등호(=) 연산자를 사용하여 2개 이상의 테이블을 연결하는 출력하는 방식 
+SELECT e.emp_name, d.dept_title, e.salary
+FROM employee e
+    ,department d
+WHERE e.dept_code = d.dept_id
+;
+
+-- 세미조인
+-- : 서브 쿼리에 존재하는 데이터만 메인 쿼리에서 추출하여 출력하는 방식
+--   * IN 또는 EXISTS 연산자를 사용한 조인
+-- 급여가 3000000 이상인 부서를 출력하시오.
+SELECT *
+FROM department d
+WHERE EXISTS (
+                SELECT *
+                FROM employee e
+                WHERE e.dept_code = d.dept_id
+                  AND salary >= 3000000
+             )
+;
+
+SELECT *
+FROM department
+WHERE dept_id IN (
+                    SELECT dept_code
+                    FROM employee
+                    WHERE salary >= 3000000
+                  )
+;
 
 
 
 
 
+-- 안티 조인
+--  서브 쿼리에 존재하는 데이터만 제외하고 메인 쿼리에서 추출하여 출력하는 방식
+SELECT *
+FROM employee e
+WHERE NOT EXISTS (
+                    SELECT *
+                    FROM department d
+                    WHERE e.dept_code = d.dept_id
+                 )
+;
+
+SELECT *
+FROM employee e
+WHERE dept_code NOT IN (
+                    SELECT dept_id
+                    FROM department d
+                    WHERE e.dept_code = d.dept_id
+                 )
+;
+
+-- 셀프 조인
+-- 동일한 하나의 테이블을 2번이상 조합하여 출력하는 방식
+-- 같은 부서의 사원에대한 매니저를 출력하시오.
+SELECT b.emp_id 사원번호
+     , b.emp_name 사원명
+     , a.emp_name 매니저명
+FROM employee a
+    ,employee b
+WHERE a.emp_id = b.manager_id
+  AND a.dept_code = b.dept_code
+;
 
 
+-- 외부 조인 (OUTER JOIN)
+-- LEFT OUTER JOIN
+-- : 왼쪽 테이블을 먼저 읽어드린 후,
+--  조인 조건에 일치하는 오른쪽 테이블을 함께 조회하는 것
+--  * 오른쪽 테이블 데이터는 NULL 로 조회된다.
+-- 1) ANSI 조인
+-- LEFT OUTER JOIN 키워를 이용하여 조인한다.
+-- * 테이블1 A LEFT OUTER JOIN 테이블2 B ON 조인조건;
+-- 
+-- 2) 기존 방식
+-- 조인 조건에서 데이터가 없는 테이블의 컬럼에 (+) 기호를 붙여준다.
+-- * WHERE A.공통컬럼 = B.공통컬럼(+);
+SELECT e.emp_id
+      ,e.emp_name
+      ,d.dept_id
+      ,d.dept_title
+FROM employee e
+    ,department d
+WHERE e.dept_code = d.dept_id(+);
+
+-- RIGHT OUTER JOIN
+-- : 오른쪽 테이블을 먼저 읽어드린 후,
+--  조인 조건에 일치하는 왼쪽 테이블을 함께 조회하는 것
+--  * 왼쪽 테이블 데이터는 NULL 로 조회된다.
+-- 1) ANSI 조인
+-- RIGHT OUTER JOIN 키워를 이용하여 조인한다.
+-- * 테이블1 A RIGHT OUTER JOIN 테이블2 B ON 조인조건;
+-- 
+-- 2) 기존 방식
+-- 조인 조건에서 데이터가 없는 테이블의 컬럼에 (+) 기호를 붙여준다.
+-- * WHERE A.공통컬럼(+) = B.공통컬럼;
+SELECT e.emp_id
+      ,e.emp_name
+      ,d.dept_id
+      ,d.dept_title
+FROM employee e
+    ,department d
+WHERE e.dept_code(+) = d.dept_id;
+
+-- FULL OUTER JOIN
+-- : -조인조건에 일치하는 왼쪽 테이블과 오른쪽 테이블의 교집합이 되는 데이터
+--   -조인조건이 일치하지 않는 왼쪽 테이블 데이터 (오른쪽 테이블 데이터 NULL)
+--   -조인조건이 일치하지 않는 오른쪽 테이블 데이터 (왼쪽 테이블 데이터 NULL)
+--   위의 각 집합에 해당하는 데이터를 모두 출력하는 방식
+--  * ANSI 조인만 있다. (FULL OUTER JOIN)
+SELECT e.emp_id
+      ,e.emp_name
+      ,d.dept_id
+      ,d.dept_title
+FROM employee e
+    ,department d
+WHERE e.dept_code(+) = d.dept_id(+); -- 불가능
+  
+  
+-- INNER JOIN
+-- : 여러 테이블의 공통된 속성 값이 일치하는 데이터만 조회하는 방식
+--  "교집합"
+SELECT e.emp_id
+      ,e.emp_name
+      ,d.dept_id
+      ,d.dept_title
+FROM employee e INNER JOIN department d ON e.dept_code = d.dept_id
+;
+
+-- 카테시안 조인
+-- : 하나의 테이블 A과 다른 하나의 테이블 B의 모든 행을 조회하는 방식
+--   (A 행의 수) X (B 행의 수) = (조회 결과 행의 수)
+SELECT *
+FROM employee
+    ,department d
+;
+-- CROSS JOIN
+SELECT *
+FROM employee e
+     CROSS JOIN department d;
 
 
+-- WITH 절
+SELECT *
+FROM (SELECT * FROM employee WHERE dept_code = 'D1' ) e
+    ,(SELECT * FROM department WHERE location_id = 'L1' ) d
+WHERE e.dept_code = d.dept_id
+;
+
+--
+WITH
+    e AS (SELECT * FROM employee WHERE dept_code = 'D1'),
+    d AS (SELECT * FROM department WHERE location_id = 'L1' )
+SELECT *
+FROM e, d
+WHERE e.dept_code = d.dept_id
+;
+ 
+    
+-- 데이터 사전
+SELECT * FROM dict;
+SELECT * FROM dictionary;
+
+-- USER_??? 데이터 사전
+SELECT * FROM user_tables;
+
+-- ALL_??? 데이터 사전
+SELECT * FROM all_tables WHERE TABLE_NAME NOT LIKE '%$%';
+
+-- DBA_??? 데이터 사전
+SELECT * FROM dba_tables;
+SELECT * FROM dba_users;
 
 
+-- 98
+GRANT CREATE VIEW to human;
+DROP VIEW VE_EMP_DEPT;
+CREATE VIEW VE_EMP_DEPT
+AS
+    (
+    SELECT e.emp_id
+          ,e.emp_name
+          ,d.dept_id
+          ,d.dept_title
+          ,e.email
+          ,e.phone
+          ,RPAD( SUBSTR(emp_no, 1, 8), 14, '*') AS emp_no
+          ,TO_CHAR(hire_date, 'YYYY.MM.DD') AS hire_date
+          ,TO_CHAR( salary, '999,999,999,999' ) AS salary
+          ,TO_CHAR( (salary + NVL(salary*bonus,0)) * 12, '999,999,999,999') AS yr_salary
+    FROM employee e
+         LEFT JOIN department d ON e.dept_code = d.dept_id
+    );
+SELECT * FROM VE_EMP_DEPT;
+
+-- 99
+CREATE SEQUENCE SEQ_MS_USER
+       START WITH 1
+       INCREMENT BY 1
+       MAXVALUE 1000000;
+       
+CREATE SEQUENCE SEQ_MS_BOARD
+       START WITH 1
+       INCREMENT BY 1
+       MAXVALUE 1000000;
+       
+CREATE SEQUENCE SEQ_MS_FILE
+       START WITH 1
+       INCREMENT BY 1
+       MAXVALUE 1000000;
+       
+CREATE SEQUENCE SEQ_MS_REPLY
+       START WITH 1
+       INCREMENT BY 1
+       MAXVALUE 1000000;
+       
+-- 100. 
+SELECT SEQ_MS_USER.nextval FROM dual;
+SELECT SEQ_MS_USER.currval FROM dual;
 
 
+-- 101.
+DROP SEQUENCE SEQ_MS_USER;
+
+CREATE SEQUENCE SEQ_MS_USER
+START WITH 1
+INCREMENT BY 1
+MAXVALUE 1000000;
+
+-- 102
+INSERT INTO ms_user (USER_NO, USER_ID, USER_PW, USER_NAME,
+                      BIRTH, TEL, ADDRESS, REG_DATE, UPD_DATE)
+VALUES ( SEQ_MS_USER.nextval, 'ALOHA', '123456', '김휴먼', 
+        '2002/01/01', '010-1234-1234','서울 영등포', sysdate, sysdate );
+
+INSERT INTO ms_user (USER_NO, USER_ID, USER_PW, USER_NAME,
+                      BIRTH, TEL, ADDRESS, REG_DATE, UPD_DATE)
+VALUES ( SEQ_MS_USER.nextval, 'human', '123456', '박휴먼', 
+        '2002/01/01', '010-3688-3688','서울 여의도', sysdate, sysdate );
+commit;        
+SELECT * FROM ms_user;
 
 
+-- 103
+ALTER SEQUENCE SEQ_MS_USER MAXVALUE 100000000;
 
+-- 104
+SELECT index_name, table_name, column_name
+FROM user_ind_columns
+;
 
+-- 105
+SELECT user_id, user_name
+FROM ms_user;
 
+-- 인덱스 생성
+CREATE INDEX IDX_MS_USER_NAME ON human.ms_user(user_name);
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+-- 인덱스 삭제
+DROP INDEX IDX_MS_USER_NAME;
 
 
 
@@ -1826,6 +2178,7 @@ FROM EMPLOYEE E
 
 
       
+
 
 
 
